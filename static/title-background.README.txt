@@ -1,0 +1,5 @@
+Save the selected pixel-art background image as:
+
+static/title-background.png
+
+The title screen CSS uses this file as the blurred full-screen background.

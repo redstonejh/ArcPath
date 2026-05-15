@@ -1,0 +1,1215 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Photo Trail Mapper</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css', v='35') }}">
+  </head>
+  <body data-trail-version="{{ trail_version }}">
+    <main class="shell">
+      {% with messages = get_flashed_messages() %}
+        {% if messages %}
+          <div class="notice">
+            {% for message in messages %}
+              <p>{{ message }}</p>
+            {% endfor %}
+          </div>
+        {% endif %}
+      {% endwith %}
+
+      {% if map_html %}
+        <section class="map-panel" aria-label="Generated map">
+          {{ map_html | safe }}
+        </section>
+
+        <div class="trace-node-card" data-trace-card>
+          <button type="button" class="trace-node-close" data-trace-close aria-label="Close popup">&times;</button>
+          <button type="button" class="trace-node-photo-wrap" data-photo-expand aria-label="Open photo larger">
+            <img class="trace-node-photo" data-trace-photo src="" alt="Photo at this location">
+            <div class="trace-node-photo-placeholder" data-trace-photo-placeholder hidden>No Photo</div>
+          </button>
+          <div class="trace-node-info">
+            <span class="trace-node-num" data-trace-num></span>
+            <span class="trace-node-time" data-trace-time></span>
+            <span class="trace-node-landmark" data-trace-landmark></span>
+            <label class="trace-node-custom-label" for="trace-node-custom-input">Custom note</label>
+            <textarea id="trace-node-custom-input" class="trace-node-custom-input" data-trace-custom-input rows="2" placeholder="Add your note for this location..."></textarea>
+            <div class="trace-node-actions">
+              <button type="button" class="trace-node-mini" data-popup-prev aria-label="Previous photo">&#x2039;</button>
+              <button type="button" class="trace-node-mini" data-popup-next aria-label="Next photo">&#x203A;</button>
+              <button type="button" class="trace-node-mini trace-node-mini--wide" data-popup-zoom>View Photo</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="map-controls">
+          <button type="button" class="settings-fab" data-toggle-timeline aria-label="Toggle timeline">&#9776;</button>
+          <button type="button" class="settings-fab" data-open-settings aria-label="Open settings">⚙</button>
+        </div>
+
+        <aside class="timeline-panel" data-timeline-panel aria-label="Photo timeline">
+          <div class="timeline-head">
+            <div>
+              <p class="timeline-kicker">Trip</p>
+              <h2>Photo Timeline</h2>
+            </div>
+            <button type="button" class="timeline-close" data-toggle-timeline aria-label="Close timeline">&times;</button>
+          </div>
+          <div class="trip-stats">
+            <div><span>{{ trip_stats.photo_count }}</span><small>Photos</small></div>
+            <div><span>{{ trip_stats.distance_miles }}</span><small>Miles</small></div>
+            <div><span>{{ trip_stats.duration_label }}</span><small>Duration</small></div>
+            <div><span>{{ trip_stats.avg_miles }}</span><small>Avg gap</small></div>
+          </div>
+          <div class="timeline-range">
+            <span>{{ trip_stats.start_label }}</span>
+            <span>{{ trip_stats.end_label }}</span>
+          </div>
+          <ol class="timeline-list" data-timeline-list></ol>
+        </aside>
+
+        <div class="trace-controls" data-trace-controls hidden>
+          <button type="button" class="trace-control-button" data-trace-pause aria-label="Pause trace">Pause</button>
+          <button type="button" class="trace-control-button" data-trace-play aria-label="Play trace">Play</button>
+          <button type="button" class="trace-control-button trace-control-button--stop" data-trace-stop aria-label="Stop trace">Stop</button>
+          <select class="trace-speed" data-trace-speed aria-label="Trace speed">
+            <option value="0.5">0.5x</option>
+            <option value="1" selected>1x</option>
+            <option value="1.5">1.5x</option>
+            <option value="2">2x</option>
+          </select>
+        </div>
+
+        <div class="trace-story" data-trace-story hidden>
+          <div class="trace-story-main">
+            <span data-trace-story-label>Trace ready</span>
+            <strong data-trace-story-distance>{{ trip_stats.distance_miles }} mi</strong>
+          </div>
+          <div class="trace-progress"><span data-trace-progress></span></div>
+        </div>
+
+        {% if skipped %}
+          <p class="quiet-note">{{ skipped }} uploaded photo{{ '' if skipped == 1 else 's' }} had no readable GPS metadata.</p>
+        {% endif %}
+      {% else %}
+        <section class="start-screen">
+          <div class="title-stage">
+            <div class="game-title">
+              <h1><span class="title-arc">Arc</span><span>Path</span></h1>
+              <svg class="splash-arc" viewBox="0 0 760 120" role="img" aria-label="Arc like a journey's arc, not like ArcGIS trademark">
+                <defs>
+                  <path id="splash-path" d="M 34 82 C 216 25, 430 25, 704 54"></path>
+                </defs>
+
+<text>
+                  <textPath href="#splash-path" startOffset="47%" text-anchor="middle">Arc like a journey's arc, not like ArcGIS&trade;</textPath>
+                </text>
+              </svg>
+            </div>
+
+            <div class="start-actions">
+              <button type="button" class="primary-action desktop-only" data-open-phone-upload>Upload From Phone</button>
+              <form method="post" enctype="multipart/form-data" class="file-action" data-auto-upload>
+                <label class="primary-action" for="start-photos">Choose Files</label>
+                <input id="start-photos" name="photos" type="file" accept=".jpg,.jpeg,.tif,.tiff,.heic,.heif,image/jpeg,image/tiff,image/heic,image/heif" multiple required>
+              </form>
+              <form method="post" action="{{ url_for('dev_random_map') }}">
+                <button type="submit" class="dev-button">DEV: Random Map</button>
+              </form>
+            </div>
+          </div>
+
+          <p class="mobile-note">Select photos to build your map.</p>
+          <p class="art-credit">Background by roger_stott on Wallpapers.com</p>
+        </section>
+      {% endif %}
+
+      <dialog class="settings-dialog" data-settings-dialog>
+        <div class="settings-head">
+          <h2>Options</h2>
+          <form method="dialog">
+            <button class="close-button" aria-label="Close settings">×</button>
+          </form>
+        </div>
+        <div class="settings-body">
+          <p class="settings-label">Add Photos</p>
+          <form method="post" enctype="multipart/form-data" data-auto-upload>
+            <label class="settings-option" for="map-photos">
+              From Files
+              <input id="map-photos" name="photos" type="file" accept=".jpg,.jpeg,.tif,.tiff,.heic,.heif,image/jpeg,image/tiff,image/heic,image/heif" multiple required>
+            </label>
+          </form>
+          <button type="button" class="settings-option" data-open-phone-upload>From Phone</button>
+
+          <div class="settings-divider"></div>
+
+          <p class="settings-label">Trail</p>
+          <button type="button" class="settings-option" data-open-export>Export / Share</button>
+          <button type="button" class="settings-option" data-toggle-timeline>Timeline</button>
+
+          <div class="settings-divider"></div>
+
+          <p class="settings-label">View</p>
+          <button type="button" class="settings-option" data-fog-toggle>Fog of War</button>
+          <button type="button" class="settings-option" data-trace-btn>&#x25B6; Trace Route</button>
+
+          <div class="settings-divider"></div>
+
+          <p class="settings-label">Share</p>
+          <button type="button" class="settings-option" data-copy-link>Copy Link</button>
+
+          <div class="settings-divider"></div>
+
+          <form method="post" action="{{ url_for('reset') }}">
+            <button type="submit" class="settings-option settings-option--danger">&#x2190; Main Menu</button>
+          </form>
+        </div>
+      </dialog>
+
+      <dialog class="qr-dialog" data-phone-dialog>
+        <form method="dialog">
+          <button class="close-button" aria-label="Close phone upload QR">x</button>
+        </form>
+        <h2>Scan To Upload</h2>
+        <img src="{{ url_for('qr_code') }}" alt="QR code for phone upload">
+        <a href="{{ phone_upload_url }}">{{ phone_upload_url }}</a>
+        <div class="waiting-status" aria-live="polite" data-waiting-status>
+          <span></span>
+          Waiting for mobile upload
+        </div>
+        <p>This page will update automatically when your phone finishes uploading.</p>
+      </dialog>
+
+      <dialog class="export-dialog" data-export-dialog>
+        <form method="dialog">
+          <button class="close-button" aria-label="Close export dialog">&times;</button>
+        </form>
+        <h2>Export / Share</h2>
+        <div class="export-grid">
+          <button type="button" data-export-html>HTML Map</button>
+          <button type="button" data-export-geojson>GeoJSON</button>
+          <button type="button" data-export-gpx>GPX</button>
+          <button type="button" data-copy-link>Copy Link</button>
+        </div>
+        <p class="export-status" data-export-status aria-live="polite"></p>
+      </dialog>
+
+      <dialog class="photo-lightbox" data-photo-lightbox>
+        <form method="dialog">
+          <button class="close-button" aria-label="Close photo">&times;</button>
+        </form>
+        <img data-lightbox-photo src="" alt="Expanded trail photo">
+      </dialog>
+    </main>
+
+    <script>
+      const __photoPoints = {{ points_json | tojson }};
+      const __routedPath  = {{ routed_json | tojson }};
+      const __tripStats   = {{ trip_stats | tojson }};
+    </script>
+    <script>
+      const dialog = document.querySelector("[data-phone-dialog]");
+      const settingsDialog = document.querySelector("[data-settings-dialog]");
+      const openButtons = document.querySelectorAll("[data-open-phone-upload]");
+      const waitingStatus = document.querySelector("[data-waiting-status]");
+      const uploadForms = document.querySelectorAll("[data-auto-upload]");
+      const initialTrailVersion = Number(document.body.dataset.trailVersion || 0);
+      let waitingForPhoneUpload = false;
+
+      document.querySelector("[data-open-settings]")?.replaceChildren("\u2699");
+      document.querySelectorAll(".close-button").forEach((button) => button.replaceChildren("\u00d7"));
+
+      document.querySelector("[data-open-settings]")?.addEventListener("click", () => {
+        settingsDialog?.showModal();
+      });
+      settingsDialog?.addEventListener("click", (e) => {
+        if (e.target === settingsDialog) settingsDialog.close();
+      });
+
+      openButtons.forEach((button) => {
+        button.addEventListener("click", () => {
+          settingsDialog?.close();
+          waitingForPhoneUpload = true;
+          waitingStatus?.classList.add("is-waiting");
+          if (dialog?.showModal) {
+            dialog.showModal();
+          }
+        });
+      });
+
+      uploadForms.forEach((form) => {
+        const input = form.querySelector("input[type='file']");
+        const label = form.querySelector("label");
+        input?.addEventListener("change", () => {
+          if (input.files.length > 0) {
+            label?.classList.add("is-uploading");
+            if (label) {
+              label.textContent = "Uploading...";
+            }
+            form.submit();
+          }
+        });
+      });
+
+
+      async function reloadWhenTrailChanges() {
+        try {
+          const response = await fetch("{{ url_for('trail_state_status') }}", { cache: "no-store" });
+          if (!response.ok) {
+            return;
+          }
+          const state = await response.json();
+          if (Number(state.version) > initialTrailVersion) {
+            waitingStatus?.classList.remove("is-waiting");
+            waitingStatus?.classList.add("is-complete");
+            if (waitingStatus) {
+              waitingStatus.lastChild.textContent = " Upload complete. Updating map...";
+            }
+            window.location.reload();
+          } else if (waitingForPhoneUpload && waitingStatus) {
+            waitingStatus.lastChild.textContent = " Waiting for mobile upload";
+          }
+        } catch (error) {
+          // The server may be restarting; the next poll will pick it up.
+        }
+      }
+
+      window.setInterval(reloadWhenTrailChanges, 2000);
+
+      // Export / Share
+      (function () {
+        const exportDialog = document.querySelector("[data-export-dialog]");
+        const exportStatus = document.querySelector("[data-export-status]");
+        const openExportButtons = document.querySelectorAll("[data-open-export]");
+        const settingsDlg = document.querySelector("[data-settings-dialog]");
+        const photoPoints = __photoPoints || [];
+        const routedPath = __routedPath || [];
+
+        function setExportStatus(message) {
+          if (exportStatus) exportStatus.textContent = message;
+        }
+
+        function downloadText(filename, type, text) {
+          const blob = new Blob([text], { type });
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          link.href = url;
+          link.download = filename;
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+          URL.revokeObjectURL(url);
+        }
+
+        function buildGeoJson() {
+          return {
+            type: "FeatureCollection",
+            features: [
+              {
+                type: "Feature",
+                properties: { name: "ArcPath route", distance_miles: __tripStats.distance_miles },
+                geometry: { type: "LineString", coordinates: routedPath.map(([lat, lon]) => [lon, lat]) },
+              },
+              ...photoPoints.map((pt, index) => ({
+                type: "Feature",
+                properties: {
+                  index: index + 1,
+                  filename: pt.filename,
+                  taken_at: pt.taken_at || "",
+                },
+                geometry: { type: "Point", coordinates: [pt.lon, pt.lat] },
+              })),
+            ],
+          };
+        }
+
+        function buildGpx() {
+          const routePoints = routedPath.map(([lat, lon]) => `    <trkpt lat="${lat}" lon="${lon}" />`).join("\n");
+          const waypoints = photoPoints.map((pt, index) => `  <wpt lat="${pt.lat}" lon="${pt.lon}"><name>Photo ${index + 1}</name><desc>${pt.taken_at || ""}</desc></wpt>`).join("\n");
+          return `<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="ArcPath">\n${waypoints}\n  <trk><name>ArcPath route</name><trkseg>\n${routePoints}\n  </trkseg></trk>\n</gpx>\n`;
+        }
+
+        async function copyLink() {
+          try {
+            await navigator.clipboard.writeText(window.location.href);
+            setExportStatus("Link copied.");
+          } catch (_) {
+            setExportStatus(window.location.href);
+          }
+        }
+
+        openExportButtons.forEach((button) => {
+          button.addEventListener("click", () => {
+            settingsDlg?.close();
+            setExportStatus("");
+            exportDialog?.showModal();
+          });
+        });
+        document.querySelectorAll("[data-copy-link]").forEach((button) => button.addEventListener("click", copyLink));
+        document.querySelector("[data-export-html]")?.addEventListener("click", () => {
+          downloadText("arcpath-map.html", "text/html", `<!doctype html>\n${document.documentElement.outerHTML}`);
+          setExportStatus("HTML map exported.");
+        });
+        document.querySelector("[data-export-geojson]")?.addEventListener("click", () => {
+          downloadText("arcpath-route.geojson", "application/geo+json", JSON.stringify(buildGeoJson(), null, 2));
+          setExportStatus("GeoJSON exported.");
+        });
+        document.querySelector("[data-export-gpx]")?.addEventListener("click", () => {
+          downloadText("arcpath-route.gpx", "application/gpx+xml", buildGpx());
+          setExportStatus("GPX exported.");
+        });
+      })();
+
+      // Trace Route
+      (function () {
+        const mapPanel    = document.querySelector(".map-panel");
+        if (!mapPanel) return;
+
+        const photoPoints   = __photoPoints || [];
+        const routedPath    = __routedPath  || [];
+        const traceBtn      = document.querySelector("[data-trace-btn]");
+        const settingsDlg   = document.querySelector("[data-settings-dialog]");
+        const traceCard     = document.querySelector("[data-trace-card]");
+        const tracePhoto    = document.querySelector("[data-trace-photo]");
+        const traceNum      = document.querySelector("[data-trace-num]");
+        const traceTime     = document.querySelector("[data-trace-time]");
+        const traceLandmark = document.querySelector("[data-trace-landmark]");
+        const tracePlaceholder = document.querySelector("[data-trace-photo-placeholder]");
+        const traceCustomInput = document.querySelector("[data-trace-custom-input]");
+        const traceClose = document.querySelector("[data-trace-close]");
+        const traceControls = document.querySelector("[data-trace-controls]");
+        const tracePauseBtn = document.querySelector("[data-trace-pause]");
+        const tracePlayBtn = document.querySelector("[data-trace-play]");
+        const traceStopBtn = document.querySelector("[data-trace-stop]");
+        const traceSpeedSelect = document.querySelector("[data-trace-speed]");
+        const traceStory = document.querySelector("[data-trace-story]");
+        const traceStoryLabel = document.querySelector("[data-trace-story-label]");
+        const traceStoryDistance = document.querySelector("[data-trace-story-distance]");
+        const traceProgress = document.querySelector("[data-trace-progress]");
+        const timelinePanel = document.querySelector("[data-timeline-panel]");
+        const timelineList = document.querySelector("[data-timeline-list]");
+        const timelineToggles = document.querySelectorAll("[data-toggle-timeline]");
+        const popupPrev = document.querySelector("[data-popup-prev]");
+        const popupNext = document.querySelector("[data-popup-next]");
+        const popupZoom = document.querySelector("[data-popup-zoom]");
+        const photoExpand = document.querySelector("[data-photo-expand]");
+        const photoLightbox = document.querySelector("[data-photo-lightbox]");
+        const lightboxPhoto = document.querySelector("[data-lightbox-photo]");
+
+        if (!traceBtn) return;
+        if (routedPath.length < 2 || photoPoints.length < 2) { traceBtn.disabled = true; return; }
+
+        const NODE_PAUSE_MS = 4000;
+        const CAMERA_ZOOM_THROTTLE_MS = 260;
+        const placeCache = new Map();
+        const landmarkTextCache = new Map();
+        const landmarkTextPromises = new Map();
+
+        let tracing         = false;
+        let traceLine       = null;
+        let animFrame       = null;
+        let pendingContinue = null;
+        let nodeAutoTimer   = null;
+        let traceToken      = 0;
+        let lastCameraZoomAt = 0;
+        let isTracePaused   = false;
+        let pauseStartedAt  = 0;
+        let resumeTraceMotion = null;
+        let currentMarkers = [];
+        let currentMilestones = [];
+        let traceSpeed = 1;
+
+        function setPhotoOrPlaceholder(filename) {
+          if (!tracePhoto || !tracePlaceholder) return;
+          const showPlaceholder = () => {
+            tracePhoto.hidden = true;
+            tracePlaceholder.hidden = false;
+          };
+          const showPhoto = () => {
+            tracePlaceholder.hidden = true;
+            tracePhoto.hidden = false;
+          };
+
+          if (!filename) {
+            tracePhoto.removeAttribute("src");
+            showPlaceholder();
+            return;
+          }
+
+          tracePhoto.onload = showPhoto;
+          tracePhoto.onerror = showPlaceholder;
+          tracePhoto.src = `/uploads/${filename}`;
+        }
+
+        function distanceKm(lat1, lon1, lat2, lon2) {
+          const toRad = deg => (deg * Math.PI) / 180;
+          const R = 6371;
+          const dLat = toRad(lat2 - lat1);
+          const dLon = toRad(lon2 - lon1);
+          const a =
+            Math.sin(dLat / 2) ** 2 +
+            Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+          return 2 * R * Math.asin(Math.sqrt(a));
+        }
+
+        function formatDistanceFromPlace(km) {
+          const miles = km * 0.621371;
+          if (miles < 0.2) return "near";
+          if (miles < 9.95) return `${miles.toFixed(1)} miles from`;
+          return `${Math.round(miles)} miles from`;
+        }
+
+        async function reverseGeocodeNearest(lat, lon) {
+          const key = `${lat.toFixed(4)},${lon.toFixed(4)}`;
+          if (placeCache.has(key)) return placeCache.get(key);
+
+          const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}&zoom=10&addressdetails=1`;
+          let label = "Unknown area";
+          let placeLat = lat;
+          let placeLon = lon;
+
+          try {
+            const resp = await fetch(url, {
+              headers: { "Accept": "application/json" },
+              cache: "force-cache",
+            });
+            if (resp.ok) {
+              const data = await resp.json();
+              const addr = data.address || {};
+              const placeName =
+                addr.city || addr.town || addr.village || addr.hamlet || addr.county || addr.state || data.name;
+              const region = addr.state || addr.country || "";
+              if (placeName) {
+                label = region && region !== placeName ? `${placeName}, ${region}` : placeName;
+              }
+              if (typeof data.lat === "string" && typeof data.lon === "string") {
+                placeLat = Number(data.lat);
+                placeLon = Number(data.lon);
+              }
+            }
+          } catch (_) {}
+
+          const result = { label, lat: placeLat, lon: placeLon };
+          placeCache.set(key, result);
+          return result;
+        }
+
+        async function buildLandmarkTextForPoint(pt) {
+          const key = landmarkKeyForPoint(pt);
+          if (landmarkTextCache.has(key)) return landmarkTextCache.get(key);
+          if (landmarkTextPromises.has(key)) return landmarkTextPromises.get(key);
+
+          const promise = (async () => {
+            const place = await reverseGeocodeNearest(pt.lat, pt.lon);
+            const km = distanceKm(pt.lat, pt.lon, place.lat, place.lon);
+            const distText = formatDistanceFromPlace(km);
+            const text = distText === "near" ? `Near ${place.label}` : `${distText} ${place.label}`;
+            landmarkTextCache.set(key, text);
+            landmarkTextPromises.delete(key);
+            return text;
+          })().catch((error) => {
+            landmarkTextPromises.delete(key);
+            throw error;
+          });
+
+          landmarkTextPromises.set(key, promise);
+          return promise;
+        }
+
+        function landmarkKeyForPoint(pt) {
+          return `${pt.lat.toFixed(4)},${pt.lon.toFixed(4)}`;
+        }
+
+        function cachedLandmarkTextForPoint(pt) {
+          return landmarkTextCache.get(landmarkKeyForPoint(pt)) || "";
+        }
+
+        function warmLandmarkCache() {
+          photoPoints.forEach((pt, idx) => {
+            window.setTimeout(() => {
+              buildLandmarkTextForPoint(pt).catch(() => {});
+            }, idx * 180);
+          });
+        }
+
+        function getMap() {
+          const div = mapPanel.querySelector("[id^='map_']");
+          const lmap = div ? window[div.id] : null;
+          if (lmap && !lmap._arcpathZoomMoved) {
+            lmap.zoomControl?.setPosition("bottomright");
+            lmap._arcpathZoomMoved = true;
+          }
+          return lmap;
+        }
+
+        function photoIndexForLatLng(latlng) {
+          if (!latlng || !photoPoints.length) return -1;
+          let best = -1;
+          let bestD = Infinity;
+          photoPoints.forEach((pt, idx) => {
+            const d = (pt.lat - latlng.lat) ** 2 + (pt.lon - latlng.lng) ** 2;
+            if (d < bestD) {
+              bestD = d;
+              best = idx;
+            }
+          });
+          return best;
+        }
+
+        function preparePhotoMarkers(lmap) {
+          const ms = [];
+          lmap.eachLayer((layer) => {
+            if (!(layer instanceof L.Marker)) return;
+            const idx = photoIndexForLatLng(layer.getLatLng());
+            if (idx < 0) return;
+            layer.photoIndex = idx;
+            layer.unbindPopup?.();
+            layer.closePopup?.();
+            layer.setIcon(L.divIcon({
+              className: "photo-pin",
+              html: `<span><b>${idx + 1}</b></span>`,
+              iconSize: [34, 42],
+              iconAnchor: [17, 40],
+            }));
+            layer.off("popupopen");
+            const el = layer.getElement?.();
+            if (el) {
+              el.removeAttribute("title");
+              el.setAttribute("aria-label", `Photo ${idx + 1}`);
+            }
+            ms.push(layer);
+          });
+          ms.sort((a, b) => a.photoIndex - b.photoIndex);
+          return ms;
+        }
+
+        function setActiveMarker(index) {
+          currentMarkers.forEach((marker) => {
+            const el = marker.getElement?.();
+            el?.classList.toggle("is-active", marker.photoIndex === index);
+          });
+          timelineList?.querySelectorAll(".timeline-item").forEach((item) => {
+            item.classList.toggle("is-active", Number(item.dataset.index) === index);
+          });
+        }
+
+        function openPhotoLightbox() {
+          const pt = photoPoints[activeNodeIndex];
+          if (!pt || !lightboxPhoto) return;
+          lightboxPhoto.src = `/uploads/${pt.filename}`;
+          photoLightbox?.showModal();
+        }
+
+        function showPhotoByIndex(index, center = true) {
+          const lmap = getMap();
+          if (!lmap || index < 0 || index >= photoPoints.length) return;
+          const at = routedPath[currentMilestones[index]] || [photoPoints[index].lat, photoPoints[index].lon];
+          showNodeCard(index, index === photoPoints.length - 1, null, traceToken, lmap, at, center);
+          setActiveMarker(index);
+        }
+
+        function renderTimeline() {
+          if (!timelineList) return;
+          timelineList.replaceChildren();
+          photoPoints.forEach((pt, index) => {
+            const item = document.createElement("li");
+            item.className = "timeline-item";
+            item.dataset.index = String(index);
+            const img = pt.filename ? `<img src="/uploads/${pt.filename}" alt="">` : `<span class="timeline-thumb-placeholder">${index + 1}</span>`;
+            item.innerHTML = `
+              <button type="button">
+                <span class="timeline-thumb">${img}</span>
+                <span class="timeline-copy">
+                  <strong>Photo ${index + 1}</strong>
+                  <small>${pt.taken_at || "No timestamp"}</small>
+                  <em data-timeline-place="${index}">${cachedLandmarkTextForPoint(pt) || "Loading place..."}</em>
+                </span>
+              </button>
+            `;
+            item.querySelector("button").addEventListener("click", () => {
+              if (tracing) stopTrace();
+              showPhotoByIndex(index, true);
+            });
+            timelineList.appendChild(item);
+            buildLandmarkTextForPoint(pt).then((text) => {
+              const place = item.querySelector(`[data-timeline-place="${index}"]`);
+              if (place) place.textContent = text;
+            }).catch(() => {});
+          });
+        }
+
+        function updateTraceStory(index, progress, distanceLabel = "") {
+          if (traceStory) traceStory.hidden = !tracing;
+          if (traceStoryLabel) traceStoryLabel.textContent = `Photo ${index + 1} of ${photoPoints.length}`;
+          if (traceStoryDistance) traceStoryDistance.textContent = distanceLabel || `${__tripStats.distance_miles} mi`;
+          if (traceProgress) traceProgress.style.width = `${clamp(progress * 100, 0, 100)}%`;
+          setActiveMarker(index);
+        }
+
+        function buildMilestones() {
+          let floor = 0;
+          return photoPoints.map(({ lat, lon }) => {
+            let best = floor, bestD = Infinity;
+            for (let i = floor; i < routedPath.length; i++) {
+              const d = (routedPath[i][0] - lat) ** 2 + (routedPath[i][1] - lon) ** 2;
+              if (d < bestD) { bestD = d; best = i; }
+            }
+            floor = best;
+            return best;
+          });
+        }
+
+        function segMetres(a, b) {
+          let d = 0;
+          for (let i = a; i < b && i + 1 < routedPath.length; i++) {
+            const dlat = (routedPath[i+1][0] - routedPath[i][0]) * 111320;
+            const dlng = (routedPath[i+1][1] - routedPath[i][1]) * 111320
+                       * Math.cos(routedPath[i][0] * Math.PI / 180);
+            d += Math.sqrt(dlat*dlat + dlng*dlng);
+          }
+          return Math.max(1, d);
+        }
+
+        function zoomForMetres(m) {
+          if (m <  500) return 17;
+          if (m < 1500) return 16;
+          if (m < 4000) return 15;
+          if (m < 12000) return 14;
+          if (m < 30000) return 13;
+          if (m < 70000) return 12;
+          if (m < 160000) return 11;
+          if (m < 320000) return 10;
+          if (m < 650000) return 9;
+          return 8;
+        }
+
+        function segDurationMs(m) {
+          if (m <   500) return 7800;
+          if (m <  1500) return 7000;
+          if (m <  4000) return 6200;
+          if (m < 12000) return 5200;
+          if (m < 30000) return 4300;
+          if (m < 70000) return 3600;
+          if (m < 160000) return 3000;
+          if (m < 320000) return 2500;
+          return 2100;
+        }
+
+        function clamp(v, min, max) {
+          return Math.min(max, Math.max(min, v));
+        }
+
+        function anchorCardAtLatLng(lmap, latlng) {
+          if (!traceCard || !lmap || !latlng) return;
+          const panelRect = mapPanel.getBoundingClientRect();
+          const pt = lmap.latLngToContainerPoint(latlng);
+
+          const cardW = traceCard.offsetWidth || 270;
+          const cardH = traceCard.offsetHeight || 140;
+          const margin = 10;
+          const gapAbove = 14;
+
+          const left = clamp(
+            pt.x - (cardW / 2),
+            margin,
+            Math.max(margin, panelRect.width - cardW - margin)
+          );
+          const top = clamp(
+            pt.y - cardH - gapAbove,
+            margin,
+            Math.max(margin, panelRect.height - cardH - margin)
+          );
+
+          traceCard.style.left = `${left}px`;
+          traceCard.style.top = `${top}px`;
+        }
+
+        let smoothZoomState = null;
+        function centerCameraAt(lmap, latlng, segZoom, focusBoost = 0, timestamp = 0, forceZoom = false) {
+          if (!lmap || !latlng) return;
+          const targetZoom = clamp(segZoom + focusBoost, 8, 17.2);
+          if (smoothZoomState == null || !Number.isFinite(smoothZoomState)) {
+            smoothZoomState = lmap.getZoom();
+          }
+          smoothZoomState = smoothZoomState + (targetZoom - smoothZoomState) * 0.22;
+          smoothZoomState = clamp(smoothZoomState, 8, 17.2);
+          lmap.panTo(latlng, { animate: false });
+          const now = timestamp || performance.now();
+          const zoomDelta = Math.abs(lmap.getZoom() - smoothZoomState);
+          if (forceZoom || (zoomDelta >= 0.18 && now - lastCameraZoomAt >= CAMERA_ZOOM_THROTTLE_MS)) {
+            lastCameraZoomAt = now;
+            lmap.setZoom(smoothZoomState, { animate: false });
+          }
+        }
+
+        function interpolateLatLng(a, b, t) {
+          return [
+            a[0] + (b[0] - a[0]) * t,
+            a[1] + (b[1] - a[1]) * t,
+          ];
+        }
+
+        const easeInOut = t => t < 0.5 ? 2*t*t : 1 - (-2*t+2)**2/2;
+
+        const customNotes = new Map();
+        let activeNodeIndex = -1;
+
+        async function showNodeCard(mi, isLast, onContinue, token, lmap, anchorLatLng, centerOnNode = false) {
+          const pt = photoPoints[mi];
+          setPhotoOrPlaceholder(pt.filename);
+          if (traceNum)  traceNum.textContent  = `Photo ${mi + 1} of ${photoPoints.length}`;
+          if (traceTime) traceTime.textContent = pt.taken_at || 'No timestamp';
+          activeNodeIndex = mi;
+          if (traceCustomInput) {
+            traceCustomInput.value = customNotes.get(mi) || "";
+          }
+          popupPrev?.toggleAttribute("disabled", mi <= 0);
+          popupNext?.toggleAttribute("disabled", mi >= photoPoints.length - 1);
+          setActiveMarker(mi);
+          if (tracing) updateTraceStory(mi, mi / Math.max(1, photoPoints.length - 1));
+
+          if (traceLandmark) {
+            traceLandmark.textContent = cachedLandmarkTextForPoint(pt) || "Nearest place loading...";
+            buildLandmarkTextForPoint(pt)
+              .then((txt) => {
+                if (token !== traceToken || activeNodeIndex !== mi) return;
+                traceLandmark.textContent = txt;
+              })
+              .catch(() => {
+                if (token !== traceToken || activeNodeIndex !== mi) return;
+                traceLandmark.textContent = "Near unknown area";
+              });
+          }
+
+          traceCard?.classList.add('is-visible');
+          if (lmap && anchorLatLng) {
+            if (centerOnNode) {
+              lmap.setView(anchorLatLng, lmap.getZoom(), { animate: false });
+            }
+            anchorCardAtLatLng(lmap, anchorLatLng);
+          }
+          pendingContinue = onContinue;
+
+          if (nodeAutoTimer) clearTimeout(nodeAutoTimer);
+          nodeAutoTimer = setTimeout(() => {
+            if (!tracing || isTracePaused || token !== traceToken) return;
+            advanceFromCard();
+          }, NODE_PAUSE_MS);
+        }
+
+        function advanceFromCard() {
+          if (nodeAutoTimer) { clearTimeout(nodeAutoTimer); nodeAutoTimer = null; }
+          traceCard?.classList.remove('is-visible');
+          const fn = pendingContinue;
+          pendingContinue = null;
+          if (fn) fn();
+        }
+
+        function hideNodeCard() {
+          if (nodeAutoTimer) { clearTimeout(nodeAutoTimer); nodeAutoTimer = null; }
+          traceCard?.classList.remove('is-visible');
+          pendingContinue = null;
+        }
+
+        function updateTraceControls() {
+          if (traceControls) traceControls.hidden = !tracing;
+          tracePauseBtn?.toggleAttribute("disabled", !tracing || isTracePaused);
+          tracePlayBtn?.toggleAttribute("disabled", !tracing || !isTracePaused);
+          traceStopBtn?.toggleAttribute("disabled", !tracing);
+        }
+
+        function pauseTrace() {
+          if (!tracing || isTracePaused) return;
+          isTracePaused = true;
+          pauseStartedAt = performance.now();
+          if (animFrame) {
+            cancelAnimationFrame(animFrame);
+            animFrame = null;
+          }
+          if (nodeAutoTimer) {
+            clearTimeout(nodeAutoTimer);
+            nodeAutoTimer = null;
+          }
+          updateTraceControls();
+        }
+
+        function dismissNodeCardOnly() {
+          if (nodeAutoTimer) { clearTimeout(nodeAutoTimer); nodeAutoTimer = null; }
+          traceCard?.classList.remove('is-visible');
+        }
+
+        function playTrace() {
+          if (!tracing || !isTracePaused) return;
+          isTracePaused = false;
+          if (pendingContinue) {
+            if (traceCard?.classList.contains("is-visible")) {
+              nodeAutoTimer = setTimeout(() => {
+                if (!tracing || isTracePaused) return;
+                advanceFromCard();
+              }, NODE_PAUSE_MS);
+            } else {
+              advanceFromCard();
+            }
+          } else if (resumeTraceMotion) {
+            resumeTraceMotion();
+          }
+          pauseStartedAt = 0;
+          updateTraceControls();
+        }
+
+        async function startTrace() {
+          const lmap = getMap();
+          if (!lmap) return;
+
+          settingsDlg?.close();
+          tracing = true;
+          isTracePaused = false;
+          pauseStartedAt = 0;
+          resumeTraceMotion = null;
+          traceToken += 1;
+          const token = traceToken;
+          traceBtn.textContent = "\u25a0 Stop Trace";
+          traceBtn.classList.add("is-active");
+          updateTraceControls();
+
+          const markers    = preparePhotoMarkers(lmap);
+          const milestones = buildMilestones();
+          currentMarkers = markers;
+          currentMilestones = milestones;
+          const numSegs    = milestones.length - 1;
+
+          const dists = [];
+          for (let s = 0; s < numSegs; s++) dists.push(segMetres(milestones[s], milestones[s+1]));
+          const durations = dists.map(d => segDurationMs(d));
+
+          lmap.eachLayer(l => {
+            if (l instanceof L.Polyline && !(l instanceof L.Polygon)) l.setStyle({ opacity: 0 });
+            if (l instanceof L.Marker) l.setOpacity(0);
+          });
+
+          traceLine = L.polyline([], { color: "#4da6ff", weight: 5, opacity: 0.9 }).addTo(lmap);
+
+          let seg     = 0;
+          let segT0   = null;
+          let drawnTo = milestones[0];
+
+          const firstSegDist = dists[0] || 5000;
+          const firstZoom = clamp(zoomForMetres(firstSegDist) + 0.8, 8, 17.2);
+          const startLatLng = routedPath[milestones[0]];
+          smoothZoomState = firstZoom;
+          lastCameraZoomAt = 0;
+          if (startLatLng) {
+            lmap.setView(startLatLng, firstZoom, { animate: false });
+          }
+          markers[0]?.setOpacity(1);
+          markers[0]?.closePopup();
+          showNodeCard(0, numSegs === 0, () => {
+            if (!tracing || isTracePaused || token !== traceToken) return;
+            animFrame = requestAnimationFrame(step);
+          }, token, lmap, startLatLng, true);
+
+          function step(ts) {
+            if (!tracing || isTracePaused) return;
+
+            if (seg >= numSegs) {
+              markers.forEach(m => { m.setOpacity(1); m.setZIndexOffset(0); });
+              finishTrace();
+              return;
+            }
+
+            if (segT0 === null) segT0 = ts;
+            resumeTraceMotion = () => {
+              if (!tracing || isTracePaused) return;
+              if (segT0 !== null && pauseStartedAt) {
+                segT0 += performance.now() - pauseStartedAt;
+              }
+              animFrame = requestAnimationFrame(step);
+            };
+            const t      = Math.min(1, ((ts - segT0) * traceSpeed) / (durations[seg] || 2600));
+            const eased  = easeInOut(t);
+            const target = milestones[seg] + Math.round(eased * (milestones[seg+1] - milestones[seg]));
+
+            if (drawnTo < target) {
+              const batchEnd = Math.min(target, routedPath.length - 1);
+              const stride = Math.max(1, Math.floor((batchEnd - drawnTo) / 18));
+              while (drawnTo <= batchEnd) {
+                traceLine.addLatLng(routedPath[drawnTo]);
+                drawnTo += stride;
+              }
+              drawnTo = Math.max(drawnTo, batchEnd + 1);
+            }
+
+            const aIdx = milestones[seg];
+            const bIdx = milestones[seg + 1];
+            const a = routedPath[aIdx] || routedPath[Math.max(0, aIdx - 1)];
+            const b = routedPath[bIdx] || a;
+            const head = (a && b) ? interpolateLatLng(a, b, eased) : routedPath[Math.min(drawnTo - 1, routedPath.length - 1)];
+            const segZoom = zoomForMetres(dists[seg] || 5000);
+            if (head) {
+              centerCameraAt(lmap, head, segZoom, 0, ts);
+            }
+            updateTraceStory(seg, (seg + eased) / Math.max(1, numSegs), `${Math.max(0.1, (dists[seg] || 0) * 0.000621371).toFixed(1)} mi segment`);
+
+            if (t < 1) {
+              animFrame = requestAnimationFrame(step);
+              return;
+            }
+
+            const mi        = seg + 1;
+            const isLast    = mi >= numSegs;
+            const arrivalPt = routedPath[milestones[mi]] || head;
+            const arrivalZoom = clamp(zoomForMetres(dists[Math.max(0, seg)] || 5000) + 0.9, 8, 17.2);
+
+            if (arrivalPt) {
+              centerCameraAt(lmap, arrivalPt, arrivalZoom, 0.9, ts, true);
+            }
+
+            markers[mi]?.setOpacity(1);
+            markers[mi]?.setZIndexOffset(1000);
+            markers[mi]?.closePopup();
+
+            showNodeCard(mi, isLast, () => {
+              if (!tracing || isTracePaused || token !== traceToken) return;
+              seg++;
+              segT0 = null;
+              animFrame = requestAnimationFrame(step);
+            }, token, lmap, arrivalPt, true);
+          }
+        }
+
+        function finishTrace() {
+          tracing = false;
+          isTracePaused = false;
+          pauseStartedAt = 0;
+          resumeTraceMotion = null;
+          traceBtn.textContent = "\u25b6 Trace Route";
+          traceBtn.classList.remove("is-active");
+          hideNodeCard();
+          if (traceStory) traceStory.hidden = true;
+          setActiveMarker(-1);
+          updateTraceControls();
+        }
+
+        function stopTrace() {
+          tracing = false;
+          if (animFrame) { cancelAnimationFrame(animFrame); animFrame = null; }
+          traceToken += 1;
+          hideNodeCard();
+          const lmap = getMap();
+          if (lmap) {
+            if (traceLine) { lmap.removeLayer(traceLine); traceLine = null; }
+            lmap.eachLayer(l => {
+              if (l instanceof L.Polyline && !(l instanceof L.Polygon)) l.setStyle({ opacity: 0.9 });
+              if (l instanceof L.Marker) { l.setOpacity(1); l.setZIndexOffset(0); }
+            });
+          }
+          finishTrace();
+        }
+
+        function closeVisibleNodeCard() {
+          if (tracing && pendingContinue && !isTracePaused) {
+            advanceFromCard();
+            return;
+          }
+          if (tracing && pendingContinue && isTracePaused) {
+            dismissNodeCardOnly();
+            return;
+          }
+          hideNodeCard();
+        }
+
+        traceCustomInput?.addEventListener("input", () => {
+          if (activeNodeIndex < 0) return;
+          customNotes.set(activeNodeIndex, traceCustomInput.value || "");
+        });
+
+        traceBtn.addEventListener("click", () => {
+          if (tracing) stopTrace();
+          else startTrace();
+        });
+        traceClose?.addEventListener("click", closeVisibleNodeCard);
+        tracePauseBtn?.addEventListener("click", pauseTrace);
+        tracePlayBtn?.addEventListener("click", playTrace);
+        traceStopBtn?.addEventListener("click", stopTrace);
+        traceSpeedSelect?.addEventListener("change", () => {
+          traceSpeed = Number(traceSpeedSelect.value) || 1;
+        });
+        popupPrev?.addEventListener("click", () => showPhotoByIndex(Math.max(0, activeNodeIndex - 1), true));
+        popupNext?.addEventListener("click", () => showPhotoByIndex(Math.min(photoPoints.length - 1, activeNodeIndex + 1), true));
+        popupZoom?.addEventListener("click", openPhotoLightbox);
+        photoExpand?.addEventListener("click", openPhotoLightbox);
+        timelineToggles.forEach((button) => {
+          button.addEventListener("click", () => {
+            settingsDlg?.close();
+            timelinePanel?.classList.toggle("is-open");
+          });
+        });
+        updateTraceControls();
+
+        const markerMap = getMap();
+        if (markerMap) {
+          const clickMarkers = preparePhotoMarkers(markerMap);
+          currentMarkers = clickMarkers;
+          currentMilestones = buildMilestones();
+          renderTimeline();
+          warmLandmarkCache();
+          clickMarkers.forEach((marker) => {
+            marker.on("click", () => {
+              marker.closePopup?.();
+              marker.unbindPopup?.();
+              if (marker.getElement?.()) {
+                marker.getElement().removeAttribute("title");
+              }
+              if (tracing) return;
+              const idx = marker.photoIndex;
+              if (idx == null || idx < 0) return;
+              const at = routedPath[buildMilestones()[idx]] || [photoPoints[idx].lat, photoPoints[idx].lon];
+              showNodeCard(
+                idx,
+                idx === photoPoints.length - 1,
+                null,
+                traceToken,
+                markerMap,
+                at,
+                true
+              );
+            });
+          });
+        }
+      })();
+
+      // Fog of War
+      (function () {
+        const mapPanel = document.querySelector(".map-panel");
+        if (!mapPanel) return;
+
+        const photoPoints = __photoPoints || [];
+        const routedPath = __routedPath || [];
+        const fogToggleBtn = document.querySelector("[data-fog-toggle]");
+        const REVEAL_RADIUS = 90;
+        const ROUTE_REVEAL_WIDTH = 62;
+        const COUNTRY_OUTLINE_TILES = "https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}{r}.png";
+
+        let fogCanvas = null;
+        let fogCtx = null;
+        let countryOutlineLayer = null;
+        let fogActive = false;
+        let leafletMap = null;
+
+        function getLeafletMap() {
+          if (leafletMap) return leafletMap;
+          const div = mapPanel.querySelector("[id^='map_']");
+          if (div && window[div.id]) {
+            leafletMap = window[div.id];
+            leafletMap.zoomControl?.setPosition("bottomright");
+          }
+          return leafletMap;
+        }
+
+        function drawFog() {
+          const lmap = getLeafletMap();
+          if (!fogCanvas || !fogActive || !lmap) return;
+          const W = mapPanel.clientWidth;
+          const H = mapPanel.clientHeight;
+          fogCanvas.width = W;
+          fogCanvas.height = H;
+          fogCtx.clearRect(0, 0, W, H);
+
+          fogCtx.globalCompositeOperation = "source-over";
+          fogCtx.fillStyle = "rgba(6, 10, 17, 0.94)";
+          fogCtx.fillRect(0, 0, W, H);
+
+          fogCtx.globalCompositeOperation = "destination-out";
+          if (routedPath.length > 1) {
+            fogCtx.save();
+            fogCtx.lineCap = "round";
+            fogCtx.lineJoin = "round";
+            fogCtx.strokeStyle = "rgba(0,0,0,0.8)";
+            fogCtx.lineWidth = ROUTE_REVEAL_WIDTH;
+            fogCtx.shadowColor = "rgba(0,0,0,0.85)";
+            fogCtx.shadowBlur = 18;
+            fogCtx.beginPath();
+            routedPath.forEach(([lat, lon], index) => {
+              const pt = lmap.latLngToContainerPoint([lat, lon]);
+              if (index === 0) {
+                fogCtx.moveTo(pt.x, pt.y);
+              } else {
+                fogCtx.lineTo(pt.x, pt.y);
+              }
+            });
+            fogCtx.stroke();
+            fogCtx.restore();
+          }
+
+          for (const { lat, lon } of photoPoints) {
+            const pt = lmap.latLngToContainerPoint([lat, lon]);
+            const g = fogCtx.createRadialGradient(pt.x, pt.y, 0, pt.x, pt.y, REVEAL_RADIUS);
+            g.addColorStop(0,    "rgba(0,0,0,1)");
+            g.addColorStop(0.5,  "rgba(0,0,0,0.95)");
+            g.addColorStop(0.78, "rgba(0,0,0,0.45)");
+            g.addColorStop(1,    "rgba(0,0,0,0)");
+            fogCtx.fillStyle = g;
+            fogCtx.beginPath();
+            fogCtx.arc(pt.x, pt.y, REVEAL_RADIUS, 0, Math.PI * 2);
+            fogCtx.fill();
+          }
+          fogCtx.globalCompositeOperation = "source-over";
+        }
+
+        function ensureCountryOutlines(lmap) {
+          if (!lmap || countryOutlineLayer) return;
+          lmap.createPane("fogCountryOutlines");
+          lmap.getPane("fogCountryOutlines").style.zIndex = 455;
+          lmap.getPane("fogCountryOutlines").style.pointerEvents = "none";
+          countryOutlineLayer = L.tileLayer(COUNTRY_OUTLINE_TILES, {
+            attribution: "",
+            pane: "fogCountryOutlines",
+            opacity: 0.44,
+          });
+        }
+
+        function enableFog() {
+          if (!fogCanvas) {
+            fogCanvas = document.createElement("canvas");
+            fogCanvas.style.cssText = "position:absolute;inset:0;pointer-events:none;z-index:450;";
+            mapPanel.appendChild(fogCanvas);
+            fogCtx = fogCanvas.getContext("2d");
+          }
+          fogCanvas.style.display = "block";
+          fogActive = true;
+          const lmap = getLeafletMap();
+          if (lmap) {
+            ensureCountryOutlines(lmap);
+            countryOutlineLayer?.addTo(lmap);
+            lmap.on("move zoom viewreset", drawFog);
+          }
+          drawFog();
+        }
+
+        function disableFog() {
+          fogActive = false;
+          if (fogCanvas) fogCanvas.style.display = "none";
+          const lmap = getLeafletMap();
+          if (lmap) {
+            lmap.off("move zoom viewreset", drawFog);
+            if (countryOutlineLayer) lmap.removeLayer(countryOutlineLayer);
+          }
+        }
+
+        if (fogToggleBtn) {
+          fogToggleBtn.addEventListener("click", () => {
+            fogActive = !fogActive;
+            if (fogActive) {
+              enableFog();
+              fogToggleBtn.classList.add("is-active");
+            } else {
+              disableFog();
+              fogToggleBtn.classList.remove("is-active");
+            }
+          });
+        }
+      })();
+    </script>
+  </body>
+</html>
